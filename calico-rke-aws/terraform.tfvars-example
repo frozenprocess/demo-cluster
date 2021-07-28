@@ -1,0 +1,10 @@
+credential_file= "~/.aws/credentials"
+
+region = "us-west-2"
+profile= "default"
+availability_zone_names = ["us-west-2a","us-west-2b","us-west-2c"]
+
+cidr_block="172.16.0.0/16"
+
+image_id = "ami-03e3c5e419088e824"
+instance_type = "t3.small"
