@@ -12,3 +12,6 @@ sudo apt-get update -y
 sudo apt-get install docker-ce docker-ce-cli containerd.io -y
 
 sudo usermod -aG docker ubuntu
+
+sudo systemctl restart docker
+sudo systemctl restart docker.socket

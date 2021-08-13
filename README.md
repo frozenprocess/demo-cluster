@@ -23,7 +23,6 @@ make sure you remove `-example` from suffix.
 `image_id` default: `ami-03e3c5e419088e824`
 
 
-
 # Disclaimer
 
 Do not use this project to start a production environment.

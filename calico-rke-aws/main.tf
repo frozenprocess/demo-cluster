@@ -183,7 +183,7 @@ resource "aws_instance" "rancher_demo_instance_2" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/docker-install.sh",
-      "bash /tmp/docker-install.sh"
+      "/tmp/docker-install.sh"
     ]
   }
 
