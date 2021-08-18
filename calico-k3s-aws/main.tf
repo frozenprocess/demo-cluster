@@ -110,19 +110,20 @@ resource "aws_security_group" "k3s_demo_SG" {
   vpc_id = aws_vpc.k3s_demo_vpc.id
 
   ingress {
+    description = "Allow SSH from remote sources."
     from_port = 22
     to_port   = 22
     protocol  = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-#  ingress {
-#    description = "Allow connection to K3s apiserver."
-#    from_port = 6443
-#    to_port   = 6443
-#    protocol  = "tcp"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
+  ingress {
+    description = "Allow remote connection to apiserver."
+    from_port = 6443
+    to_port   = 6443
+    protocol  = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   ingress {
     description = "Allow Internal network to communicate"

@@ -68,15 +68,15 @@ resource "aws_security_group" "rancher_demo_SG" {
   vpc_id = aws_vpc.rancher_demo_vpc.id
 
   ingress {
+    description = "Allow SSH from remote sources."
     from_port = 22
     to_port   = 22
     protocol  = "tcp"
-    # maybe restrict it in future?
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Cluster management
   ingress {
+    description = "Allow remote connection to apiserver."
     from_port = 6443
     to_port   = 6443
     protocol  = "tcp"
@@ -88,7 +88,7 @@ resource "aws_security_group" "rancher_demo_SG" {
     from_port   = 0
     to_port     = 0
     protocol    = -1
-    cidr_blocks = [aws_vpc.rancher_demo_vpc.cidr_block]
+    cidr_blocks = [aws_vpc.k3s_demo_vpc.cidr_block]
   }
 
   egress {
@@ -141,7 +141,7 @@ resource "aws_instance" "rancher_demo_instance_1" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/docker-install.sh",
-      "bash /tmp/docker-install.sh &> /dev/null"
+      "/tmp/docker-install.sh"
     ]
   }
 
