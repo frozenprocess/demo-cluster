@@ -4,7 +4,17 @@ region = "us-west-2"
 profile= "default"
 availability_zone_names = ["us-west-2a","us-west-2b","us-west-2c"]
 
+# Range of IP that will be used for EC2 instances
 cidr_block="172.16.0.0/16"
+# Range of IP that will be used as Kubernetes Pod CIDR
+pod_cidr_block = "172.32.0.0/16"
 
-image_id = "ami-03e3c5e419088e824"
+# AMI is set to ubuntu 22.04
+# https://cloud-images.ubuntu.com/locator/ec2/
+image_id = "ami-0854e54abaeae283b"
+
+# Control plane instance type
+cp_instance_type = "t3.medium"
+# Worker Instance type
 instance_type = "t3.small"
+worker_count = 1

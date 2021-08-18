@@ -10,6 +10,11 @@ variable "image_id" {
   }
 }
 
+variable "cp_instance_type" {
+  type = string
+  default = "t3.small"
+}
+
 variable "instance_type" {
     type = string
     default = "t3.small"
@@ -40,9 +45,18 @@ variable "cidr_block" {
     default="172.16.0.0/16"
 }
 
+variable "pod_cidr_block" {
+    type=string
+    default="172.32.0.0/16"
+}
+
+variable "worker_count" {
+  default = "1"
+}
+
 provider "aws" {
   region                  = var.region
-  shared_credentials_file = var.credential_file
+  shared_credentials_files = [var.credential_file]
   profile                 = var.profile
 }
 
@@ -110,19 +124,20 @@ resource "aws_security_group" "k3s_demo_SG" {
   vpc_id = aws_vpc.k3s_demo_vpc.id
 
   ingress {
+    description = "Allow SSH from remote sources."
     from_port = 22
     to_port   = 22
     protocol  = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-#  ingress {
-#    description = "Allow connection to K3s apiserver."
-#    from_port = 6443
-#    to_port   = 6443
-#    protocol  = "tcp"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
+  ingress {
+    description = "Allow remote connection to apiserver."
+    from_port = 6443
+    to_port   = 6443
+    protocol  = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   ingress {
     description = "Allow Internal network to communicate"
@@ -162,15 +177,42 @@ resource "aws_key_pair" "k3s_demo_ssh_key" {
   public_key = tls_private_key.k3s_demo_key.public_key_openssh
 }
 
-resource "aws_instance" "k3s_demo_instance_1" {
+resource "aws_instance" "k3s_demo_cp" {
   ami               = var.image_id
-  instance_type     = var.instance_type
+  instance_type     = var.cp_instance_type
   key_name          = "k3s_demo_ssh_key"
   availability_zone = aws_subnet.k3s_demo_subnet_1.availability_zone
   subnet_id         = aws_subnet.k3s_demo_subnet_1.id
 
   vpc_security_group_ids = [aws_security_group.k3s_demo_SG.id]
   monitoring             = false
+
+  connection {
+    type        = "ssh"
+    host        = self.public_ip
+    user        = "ubuntu"
+    private_key = tls_private_key.k3s_demo_key.private_key_pem
+  }
+
+  provisioner "file" {
+    source      = "files/prepare.sh"
+    destination = "/tmp/prepare.sh"
+  }
+
+
+  provisioner "file" {
+    source      = "files/k3s-cp.sh"
+    destination = "/tmp/k3s-cp.sh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/prepare.sh",
+      "sudo /tmp/prepare.sh",
+      "chmod +x /tmp/k3s-cp.sh",
+      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block}"
+    ]
+  }
 
   associate_public_ip_address = true
   credit_specification {
@@ -184,7 +226,8 @@ resource "aws_instance" "k3s_demo_instance_1" {
   }
 }
 
-resource "aws_instance" "k3s_demo_instance_2" {
+resource "aws_instance" "k3s_demo_worker_" {
+  count             = var.worker_count
   ami               = var.image_id
   instance_type     = var.instance_type
   key_name          = "k3s_demo_ssh_key"
@@ -198,6 +241,38 @@ resource "aws_instance" "k3s_demo_instance_2" {
   credit_specification {
     cpu_credits = "unlimited"
   }
+
+  connection {
+    type        = "ssh"
+    host        = self.public_ip
+    user        = "ubuntu"
+    private_key = tls_private_key.k3s_demo_key.private_key_pem
+  }
+
+  provisioner "file" {
+    source      = "files/prepare.sh"
+    destination = "/tmp/prepare.sh"
+  }
+
+  provisioner "file" {
+    source      = "files/k3s-node.sh"
+    destination = "/tmp/k3s-node.sh"
+  }
+
+  provisioner "file" {
+    source      = "calico-demo.pem"
+    destination = "/home/ubuntu/calico-demo.pem"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/prepare.sh",
+      "sudo /tmp/prepare.sh",
+      "chmod +x /tmp/k3s-node.sh",
+      "sudo /tmp/k3s-node.sh ${aws_instance.k3s_demo_cp.private_ip}"
+    ]
+  }
+
   disable_api_termination = false
   ebs_optimized           = false
   tags = {
