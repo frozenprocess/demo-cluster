@@ -1,63 +1,15 @@
-variable "image_id" {
-  type        = string
-  description = "The id of the machine image (AMI) to use for the server."
-  default = "ami-03e3c5e419088e824"
-
-  validation {
-    # regex(...) fails if it cannot find a match
-    condition     = can(regex("^ami-", var.image_id))
-    error_message = "The image_id value must be a valid AMI id, starting with \"ami-\"."
-  }
-}
-
-variable "cp_instance_type" {
-  type = string
-  default = "t3.small"
-}
-
-variable "worker_instance_type" {
-    type = string
-    default = "t3.small"
-}
-
-variable "availability_zone_names" {
-  type    = list(string)
-  default = ["us-west-2a","us-west-2b","us-west-2c"]
-}
-
-variable "region" {
-  type=string
-  default = "us-west-2"
-}
-
-variable "profile" {
-    type=string
-    default = "default"
-}
-
-variable "credential_file" {
-  type=string
-  default="~/.aws/credentials"
-}
-
-variable "cidr_block" {
-    type=string
-    default="172.16.0.0/16"
-}
-
-variable "pod_cidr_block" {
-    type=string
-    default="172.32.0.0/16"
-}
-
-variable "worker_count" {
-  default = "1"
-}
-
 provider "aws" {
-  region                  = var.region
+  region                   = var.region
   shared_credentials_files = [var.credential_file]
-  profile                 = var.profile
+  profile                  = var.profile
+}
+
+resource "random_string" "rand_chars" {
+  length  = 8
+  upper   = false
+  lower   = true
+  numeric = false
+  special = false
 }
 
 resource "aws_vpc" "k3s_demo_vpc" {
@@ -78,8 +30,8 @@ resource "aws_internet_gateway" "k3s_demo_igw" {
 }
 
 resource "aws_subnet" "k3s_demo_subnet_1" {
-  vpc_id     = aws_vpc.k3s_demo_vpc.id
-  cidr_block = cidrsubnet(aws_vpc.k3s_demo_vpc.cidr_block, 8, 1)
+  vpc_id            = aws_vpc.k3s_demo_vpc.id
+  cidr_block        = cidrsubnet(aws_vpc.k3s_demo_vpc.cidr_block, 8, 1)
   availability_zone = var.availability_zone_names[0]
   tags = {
     Environment = "Calico Demo"
@@ -88,8 +40,8 @@ resource "aws_subnet" "k3s_demo_subnet_1" {
 }
 
 resource "aws_subnet" "k3s_demo_subnet_2" {
-  vpc_id     = aws_vpc.k3s_demo_vpc.id
-  cidr_block = cidrsubnet(aws_vpc.k3s_demo_vpc.cidr_block, 8, 2)
+  vpc_id            = aws_vpc.k3s_demo_vpc.id
+  cidr_block        = cidrsubnet(aws_vpc.k3s_demo_vpc.cidr_block, 8, 2)
   availability_zone = length(var.availability_zone_names) > 1 ? var.availability_zone_names[1] : var.availability_zone_names[0]
   tags = {
     Environment = "Calico Demo"
@@ -125,17 +77,17 @@ resource "aws_security_group" "k3s_demo_SG" {
 
   ingress {
     description = "Allow SSH from remote sources."
-    from_port = 22
-    to_port   = 22
-    protocol  = "tcp"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     description = "Allow remote connection to apiserver."
-    from_port = 6443
-    to_port   = 6443
-    protocol  = "tcp"
+    from_port   = 6443
+    to_port     = 6443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -168,19 +120,19 @@ resource "tls_private_key" "k3s_demo_key" {
 
 resource "local_file" "k3s_demo_private_key" {
   content         = tls_private_key.k3s_demo_key.private_key_pem
-  filename        = "calico-demo.pem"
+  filename        = var.cluster_key_name
   file_permission = "0600"
 }
 
 resource "aws_key_pair" "k3s_demo_ssh_key" {
-  key_name   = "k3s_demo_ssh_key"
+  key_name   = "k3s_demo_ssh_key_${random_string.rand_chars.result}"
   public_key = tls_private_key.k3s_demo_key.public_key_openssh
 }
 
 resource "aws_instance" "k3s_demo_cp" {
   ami               = var.image_id
   instance_type     = var.cp_instance_type
-  key_name          = "k3s_demo_ssh_key"
+  key_name          = aws_key_pair.k3s_demo_ssh_key.key_name
   availability_zone = aws_subnet.k3s_demo_subnet_1.availability_zone
   subnet_id         = aws_subnet.k3s_demo_subnet_1.id
 
@@ -195,22 +147,29 @@ resource "aws_instance" "k3s_demo_cp" {
   }
 
   provisioner "file" {
-    source      = "files/prepare.sh"
+    source      = "${var.files_path}prepare.sh"
     destination = "/tmp/prepare.sh"
   }
 
 
   provisioner "file" {
-    source      = "files/k3s-cp.sh"
+    source      = "${var.files_path}k3s-cp.sh"
     destination = "/tmp/k3s-cp.sh"
+  }
+
+  provisioner "file" {
+    source      = "${var.files_path}calico-install.sh"
+    destination = "/tmp/calico-install.sh"
   }
 
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/prepare.sh",
-      "sudo /tmp/prepare.sh",
+      "sudo /tmp/prepare.sh ${var.k3s_version}",
       "chmod +x /tmp/k3s-cp.sh",
-      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block}"
+      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain} ${var.k3s_features}",
+      "chmod +x /tmp/calico-install.sh",
+      "sudo /tmp/calico-install.sh ${var.pod_cidr_block}"
     ]
   }
 
@@ -222,7 +181,7 @@ resource "aws_instance" "k3s_demo_cp" {
   ebs_optimized           = false
   tags = {
     Environment = "Calico Demo"
-    Name        = "K3s Demo Instance 1"
+    Name        = "K3s Demo Instance cp 1"
   }
 }
 
@@ -230,14 +189,14 @@ resource "aws_instance" "k3s_demo_worker_" {
   count             = var.worker_count
   ami               = var.image_id
   instance_type     = var.worker_instance_type
-  key_name          = "k3s_demo_ssh_key"
+  key_name          = aws_key_pair.k3s_demo_ssh_key.key_name
   availability_zone = aws_subnet.k3s_demo_subnet_2.availability_zone
   subnet_id         = aws_subnet.k3s_demo_subnet_2.id
 
   vpc_security_group_ids = [aws_security_group.k3s_demo_SG.id]
   monitoring             = false
 
-  associate_public_ip_address = true
+  associate_public_ip_address = var.worker_public_ip ? true : false
   credit_specification {
     cpu_credits = "unlimited"
   }
@@ -250,24 +209,24 @@ resource "aws_instance" "k3s_demo_worker_" {
   }
 
   provisioner "file" {
-    source      = "files/prepare.sh"
+    source      = "${var.files_path}prepare.sh"
     destination = "/tmp/prepare.sh"
   }
 
   provisioner "file" {
-    source      = "files/k3s-node.sh"
+    source      = "${var.files_path}k3s-node.sh"
     destination = "/tmp/k3s-node.sh"
   }
 
   provisioner "file" {
-    source      = "calico-demo.pem"
+    source      = var.cluster_key_name
     destination = "/home/ubuntu/calico-demo.pem"
   }
 
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/prepare.sh",
-      "sudo /tmp/prepare.sh",
+      "sudo /tmp/prepare.sh ${var.k3s_version}",
       "chmod +x /tmp/k3s-node.sh",
       "sudo /tmp/k3s-node.sh ${aws_instance.k3s_demo_cp.private_ip}"
     ]
@@ -277,6 +236,6 @@ resource "aws_instance" "k3s_demo_worker_" {
   ebs_optimized           = false
   tags = {
     Environment = "Calico Demo"
-    Name        = "K3s Demo Instance 2"
+    Name        = "K3s Demo Instance ${count.index}"
   }
 }

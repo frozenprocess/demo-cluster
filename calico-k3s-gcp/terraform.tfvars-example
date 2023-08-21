@@ -1,30 +1,25 @@
-credential_file= "~/.aws/credentials"
+region = "us-cetnral1"
+project= "<YOUR_GCP_PROJECT>"
+availability_zone_names = ["us-central1-a","us-central1-b","us-central1-c"]
 
-region = "us-west-2"
-profile= "default"
-availability_zone_names = ["us-west-2a","us-west-2b","us-west-2c"]
-
-# Range of IP that will be used for EC2 instances
-cidr_block="172.16.0.0/16"
 # Range of IP that will be used as Kubernetes Pod CIDR
 pod_cidr_block = "10.42.0.0/16"
 # Range of the IPs that will be used for Kubernetes services
 service_cidr_block = "10.43.0.0/16"
-# Domain name that will be used for your cluster
-cluster_domain = "aws.local"
 # Which k3s features should be disabled?
 k3s_features = "traefik,local-storage,metrics-server"
+# Domain name that will be used for your cluster
+cluster_domain = "gcp.local"
 # K3s Version that would be installed 
 k3s_version = "1.27"
 
-# AMI is set to ubuntu 22.04
-# https://cloud-images.ubuntu.com/locator/ec2/
-image_id = "ami-0854e54abaeae283b"
+# gcloud compute images list --uri | egrep ubuntu
+image_id = "ubuntu-os-cloud/ubuntu-minimal-2204-jammy-v20231003"
 
 # Control plane instance type
-cp_instance_type = "t3.medium"
+cp_instance_type = "n1-standard-4"
 # Worker Instance type
-worker_instance_type = "t3.small"
+worker_instance_type = "n1-standard-2"
 # Public ip address for workers
 worker_public_ip = true
 # Number of worker nodes in your cluster
@@ -33,4 +28,3 @@ worker_count = 1
 cluster_key_name = "calico-demo.pem"
 # Path to the files directroy
 files_path = "../files/"
-# detailed_monitoring = false
