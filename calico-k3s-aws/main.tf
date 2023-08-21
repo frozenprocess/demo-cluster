@@ -15,7 +15,7 @@ variable "cp_instance_type" {
   default = "t3.small"
 }
 
-variable "instance_type" {
+variable "worker_instance_type" {
     type = string
     default = "t3.small"
 }
