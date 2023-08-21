@@ -1,6 +1,14 @@
 #!/bin/bash
+ARCH=`uname -m`
+
+if [[ $ARCH == "x86_64" ]]
+then
 curl -L https://github.com/mikefarah/yq/releases/download/v4.33.3/yq_linux_amd64 -o /usr/local/bin/yq
 chmod +x /usr/local/bin/yq
+else
+curl -L https://github.com/mikefarah/yq/releases/download/v4.33.3/yq_linux_arm64 -o /usr/local/bin/yq
+chmod +x /usr/local/bin/yq
+fi
 
 if [[ -z "$1" ]]
 then
@@ -12,7 +20,6 @@ fi
 # Get the latest K3s binary for the above version of K3s
 INSTALL_K3S_VERSION=`curl https://api.github.com/repos/k3s-io/k3s/releases | yq -r '.[].tag_name' | egrep "$K3S_VERSION" | head -n 1`
 
-ARCH=`uname -m`
 if [[ $ARCH == "x86_64" ]]
 then
 echo "Downloading k3s binary for $ARCH"

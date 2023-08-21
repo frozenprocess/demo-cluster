@@ -229,7 +229,7 @@ resource "aws_instance" "k3s_demo_cp" {
 resource "aws_instance" "k3s_demo_worker_" {
   count             = var.worker_count
   ami               = var.image_id
-  instance_type     = var.instance_type
+  instance_type     = var.worker_instance_type
   key_name          = "k3s_demo_ssh_key"
   availability_zone = aws_subnet.k3s_demo_subnet_2.availability_zone
   subnet_id         = aws_subnet.k3s_demo_subnet_2.id
