@@ -167,7 +167,7 @@ resource "aws_instance" "k3s_demo_cp" {
       "chmod +x /tmp/prepare.sh",
       "sudo /tmp/prepare.sh ${var.k3s_version}",
       "chmod +x /tmp/k3s-cp.sh",
-      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain} ${var.k3s_features}",
+      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain} ${var.k3s_features} ${var.disable_cloud_provider}",
       "chmod +x /tmp/calico-install.sh",
       "sudo /tmp/calico-install.sh ${var.pod_cidr_block}"
     ]

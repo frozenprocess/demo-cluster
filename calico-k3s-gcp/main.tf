@@ -3,6 +3,9 @@ provider "google" {
   region  = var.region
 }
 
+data "google_project" "project" {
+}
+
 resource "random_string" "rand_chars" {
   length  = 8
   upper   = false
@@ -30,7 +33,7 @@ resource "local_file" "k3s_demo_private_key" {
 }
 
 resource "google_compute_firewall" "allow-rule" {
-  name        = "demo-permits"
+  name        = "demo-permits-${random_string.rand_chars.result}"
   network     = google_compute_network.vpc_network.self_link
   description = "Creates firewall rule targeting tagged instances"
 
@@ -43,7 +46,7 @@ resource "google_compute_firewall" "allow-rule" {
 }
 
 resource "google_compute_firewall" "rules" {
-  name        = "vpc-vms"
+  name        = "vpc-vms-${random_string.rand_chars.result}"
   network     = google_compute_network.vpc_network.self_link
   description = "Creates firewall rule targeting tagged instances"
 
@@ -62,10 +65,40 @@ resource "google_compute_firewall" "rules" {
   source_tags = ["k3s-demo-cp", "k3s-demo-workers"]
 }
 
+resource "google_tags_tag_key" "tag_key" {
+    parent = "projects/${data.google_project.project.number}"
+    short_name = "cali-demo-tag-${random_string.rand_chars.result}"
+    description = "Calico demo Tag Key."
+}
+
+resource "google_tags_tag_value" "tag_value" {
+    parent = "tagKeys/${google_tags_tag_key.tag_key.name}"
+    short_name = "cali-demo-val-${random_string.rand_chars.result}"
+    description = "Calico demo Tag value."
+}
+
+resource "google_service_account" "default" {
+  account_id   = "kube-provider-${random_string.rand_chars.result}"
+  display_name = "Custom SA for VM Instance"
+}
+
+resource "google_project_iam_custom_role" "sa-role" {
+  role_id     = "CalicoK3sDemo${random_string.rand_chars.result}"
+  title       = "Calico K3s Demo role for ${random_string.rand_chars.result}"
+  description = "Calico K3s Demo role that are required for cloud-provider integration."
+  permissions = ["compute.instances.get", "compute.addresses.create", "compute.addresses.delete", "compute.addresses.get", "compute.addresses.list", "compute.addresses.use", "compute.firewalls.create", "compute.firewalls.delete", "compute.firewalls.get", "compute.forwardingRules.create", "compute.forwardingRules.delete", "compute.forwardingRules.get", "compute.httpHealthChecks.create", "compute.httpHealthChecks.delete", "compute.httpHealthChecks.get", "compute.httpHealthChecks.useReadOnly", "compute.instances.list", "compute.instances.use", "compute.networks.updatePolicy", "compute.targetPools.create", "compute.targetPools.delete", "compute.targetPools.get", "compute.targetPools.use"]
+}
+
+resource "google_project_iam_member" "sa-role-bind" {
+  project = "${var.project}"
+  role    = "projects/${var.project}/roles/${google_project_iam_custom_role.sa-role.role_id}"
+  member  = "serviceAccount:${google_service_account.default.email}"
+}
+
 
 ### GCP INSTANCE CP
 resource "google_compute_instance" "k3s_demo_cp" {
-  name         = "k3s-demo-cp"
+  name         = "k3s-demo-cp-${random_string.rand_chars.result}"
   machine_type = var.cp_instance_type
   zone         = "us-central1-a"
 
@@ -74,7 +107,14 @@ resource "google_compute_instance" "k3s_demo_cp" {
   boot_disk {
     initialize_params {
       image = var.image_id
+      size  = var.disk_size
     }
+  }
+
+  params {
+      resource_manager_tags = {
+        "tagKeys/${google_tags_tag_key.tag_key.name}" = "tagValues/${google_tags_tag_value.tag_value.name}"
+      }
   }
 
   metadata = {
@@ -89,6 +129,9 @@ resource "google_compute_instance" "k3s_demo_cp" {
     }
   }
 
+  advanced_machine_features {
+    enable_nested_virtualization = "${var.enable_nested_virtualization}"
+  }
 
   connection {
     type        = "ssh"
@@ -113,17 +156,32 @@ resource "google_compute_instance" "k3s_demo_cp" {
     destination = "/tmp/calico-install.sh"
   }
 
+  provisioner "file" {
+    content = "[Global]\nproject-id=${var.project}\nnetwork-name=${google_compute_network.vpc_network.name}\nnode-tags=${element(tolist(self.tags), 1)}"
+    destination = "/tmp/cloud.config"
+  }
+
+  provisioner "file" {
+    source      = "${var.files_path}gcp/gcp-controller.yaml"
+    destination = "/tmp/cloud-controller.yaml"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/prepare.sh",
       "sudo /tmp/prepare.sh ${var.k3s_version}",
       "chmod +x /tmp/k3s-cp.sh",
-      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain} ${var.k3s_features}",
+      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain} ${var.k3s_features} ${var.disable_cloud_provider}",
       "chmod +x /tmp/calico-install.sh",
       "sudo /tmp/calico-install.sh ${var.pod_cidr_block}"
     ]
   }
 
+  service_account {
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+    email  = google_service_account.default.email
+    scopes = ["cloud-platform"]
+  }
 
 }
 ### GCP INSTANCE CP
@@ -131,7 +189,7 @@ resource "google_compute_instance" "k3s_demo_cp" {
 ### GCP WORKERS
 resource "google_compute_instance" "k3s_demo_worker_" {
   count        = var.worker_count
-  name         = "k3s-demo-worker-${count.index}"
+  name         = "k3s-demo-worker-${random_string.rand_chars.result}-${count.index}"
   machine_type = var.worker_instance_type
   zone         = "us-central1-a"
 
@@ -140,7 +198,14 @@ resource "google_compute_instance" "k3s_demo_worker_" {
   boot_disk {
     initialize_params {
       image = var.image_id
+      size  = var.disk_size
     }
+  }
+
+  params {
+      resource_manager_tags = {
+        "tagKeys/${google_tags_tag_key.tag_key.name}" = "tagValues/${google_tags_tag_value.tag_value.name}"
+      }
   }
 
   metadata = {
@@ -152,6 +217,10 @@ resource "google_compute_instance" "k3s_demo_worker_" {
     network = google_compute_network.vpc_network.self_link
     access_config {
     }
+  }
+
+  advanced_machine_features {
+    enable_nested_virtualization = "${var.enable_nested_virtualization}"
   }
 
   connection {
@@ -185,6 +254,11 @@ resource "google_compute_instance" "k3s_demo_worker_" {
     ]
   }
 
+  service_account {
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+    email  = google_service_account.default.email
+    scopes = ["cloud-platform"]
+  }
 
 }
 ### GCP WORKERS

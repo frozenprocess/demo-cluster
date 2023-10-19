@@ -88,3 +88,8 @@ variable "cluster_key_name" {
   type    = string
   default = "calico-demo.pem"
 }
+
+variable "disable_cloud_provider" {
+  type    = bool
+  default = true
+}

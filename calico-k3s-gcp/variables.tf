@@ -73,3 +73,17 @@ variable "cluster_key_name" {
   type    = string
   default = "calico-demo.pem"
 }
+
+variable "enable_nested_virtualization" {
+  type    = bool
+  default = false
+}
+
+variable "disk_size" {
+  default = "10"
+}
+
+variable "disable_cloud_provider" {
+  type    = bool
+  default = true
+}
