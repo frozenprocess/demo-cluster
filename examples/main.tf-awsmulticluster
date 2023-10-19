@@ -1,0 +1,83 @@
+module "cluster-a" {
+  source          = "./calico-k3s-aws"
+  credential_file = "~/.aws/credentials"
+
+  region                  = "us-west-2"
+  profile                 = "default"
+  availability_zone_names = ["us-west-2a", "us-west-2b", "us-west-2c"]
+
+  # Range of IP that will be used for EC2 instances
+  cidr_block = "172.16.0.0/16"
+  # Range of IP that will be used as Kubernetes Pod CIDR
+  pod_cidr_block = "10.42.0.0/16"
+  # Range of the IPs that will be used for Kubernetes services
+  service_cidr_block = "10.43.0.0/16"
+  # Domain name that will be used for your cluster
+  cluster_domain = "cluster-a.local"
+  # Which k3s features should be disabled?
+  k3s_features = "traefik,local-storage,metrics-server"
+  # K3s Version that would be installed 
+  k3s_version = "1.27"
+
+  # AMI is set to ubuntu 22.04
+  # https://cloud-images.ubuntu.com/locator/ec2/
+  image_id = "ami-0854e54abaeae283b"
+
+  # Control plane instance type
+  cp_instance_type = "t3.medium"
+  # Worker Instance type
+  worker_instance_type = "t3.small"
+  # Public ip address for workers
+  worker_public_ip = true
+  # Number of worker nodes in your cluster
+  worker_count     = 1
+  cluster_key_name = "cluster-a.pem"
+  files_path       = "files/"
+
+}
+
+module "cluster-b" {
+  source          = "./calico-k3s-aws"
+  credential_file = "~/.aws/credentials"
+
+  region                  = "us-east-2"
+  profile                 = "default"
+  availability_zone_names = ["us-east-2a", "us-east-2b", "us-east-2c"]
+
+  # Range of IP that will be used for EC2 instances
+  cidr_block = "172.17.0.0/16"
+  # Range of IP that will be used as Kubernetes Pod CIDR
+  pod_cidr_block = "10.52.0.0/16"
+  # Range of the IPs that will be used for Kubernetes services
+  service_cidr_block = "10.53.0.0/16"
+  # Domain name that will be used for your cluster
+  cluster_domain = "cluster-b.local"
+  # Which k3s features should be disabled?
+  k3s_features = "traefik,local-storage,metrics-server"
+  # K3s Version that would be installed 
+  k3s_version = "1.27"
+
+  # AMI is set to ubuntu 22.04
+  # https://cloud-images.ubuntu.com/locator/ec2/
+  image_id = "ami-0e83be366243f524a"
+
+  # Control plane instance type
+  cp_instance_type = "t3.medium"
+  # Worker Instance type
+  worker_instance_type = "t3.small"
+  # Public ip address for workers
+  worker_public_ip = true
+  # Number of worker nodes in your cluster
+  worker_count     = 1
+  cluster_key_name = "cluster-b.pem"
+  files_path       = "files/"
+
+}
+
+output "cluster-a" {
+  value = module.cluster-a
+}
+
+output "cluster-b" {
+  value = module.cluster-b
+}
