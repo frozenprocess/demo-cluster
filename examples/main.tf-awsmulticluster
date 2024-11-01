@@ -17,7 +17,7 @@ module "cluster-a" {
   # Which k3s features should be disabled?
   k3s_features = "traefik,local-storage,metrics-server"
   # K3s Version that would be installed 
-  k3s_version = "1.27"
+  k3s_version = "1.29"
 
   # AMI is set to ubuntu 22.04
   # https://cloud-images.ubuntu.com/locator/ec2/
