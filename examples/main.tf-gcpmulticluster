@@ -36,6 +36,10 @@ module "cluster-a" {
   files_path = "files/"
   # Nested virtualization allows you to run VMs in your VMs https://cloud.google.com/compute/docs/instances/nested-virtualization/overview
   enable_nested_virtualization = true
+  # Whether to attach a GPU to worker nodes
+  worker_enable_gpu = false
+  worker_gpu_type = "nvidia-tesla-t4"
+  worker_gpu_count = 1
   disk_size = 50
 }
 

@@ -87,3 +87,21 @@ variable "disable_cloud_provider" {
   type    = bool
   default = true
 }
+
+variable "worker_enable_gpu" {
+  description = "Whether to attach a GPU to worker nodes"
+  type        = bool
+  default     = false
+}
+
+variable "worker_gpu_type" {
+  description = "GPU type to attach"
+  type        = string
+  default     = "nvidia-tesla-t4"
+}
+
+variable "worker_gpu_count" {
+  description = "Number of GPUs to attach"
+  type        = number
+  default     = 1
+}

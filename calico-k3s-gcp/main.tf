@@ -219,6 +219,21 @@ resource "google_compute_instance" "k3s_demo_worker_" {
     }
   }
 
+  dynamic "guest_accelerator" {
+    for_each = var.worker_enable_gpu ? [1] : []
+    content {
+      type  = var.worker_gpu_type
+      count = var.worker_gpu_count
+    }
+  }
+
+  dynamic "scheduling" {
+    for_each = var.worker_enable_gpu ? [1] : []
+    content {
+      on_host_maintenance = "TERMINATE"
+    }
+  }
+
   advanced_machine_features {
     enable_nested_virtualization = "${var.enable_nested_virtualization}"
   }

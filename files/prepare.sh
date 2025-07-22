@@ -47,3 +47,12 @@ kind: KubeletConfiguration
 maxPods: 4000
 EOF
 # Increase Kubelet Pod limit
+
+gpu=$(lspci | grep -i nvidia | wc -l)
+
+if [ "$gpu" -ge 1 ]; then
+  sudo apt update
+  sudo apt install -y nvidia-driver-575-open
+else
+  echo "No NVIDIA GPU detected."
+fi

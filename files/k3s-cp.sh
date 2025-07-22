@@ -7,13 +7,6 @@ CLUSTER_DOMAIN=$3
 K3S_FEATURES=$4
 DISABLE_CLOUD_PROVIDER=$5
 
-# Increase pod-count
-cat >>  /etc/kubelet.conf <<-EOF
-apiVersion: kubelet.config.k8s.io/v1beta1
-kind: KubeletConfiguration
-maxPods: 4000
-EOF
-# Increase pod-count
 if [[ $DISABLE_CLOUD_PROVIDER == "false" ]];then
 DISABLE_CLOUD_PROVIDER_STRING="--kubelet-arg=cloud-provider=external --disable-cloud-controller"
 fi

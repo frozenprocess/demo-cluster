@@ -9,9 +9,13 @@ done
 
 CALICO_VERSION=`curl https://api.github.com/repos/projectcalico/calico/releases | yq -r '.[].tag_name' | sort -d | tail -n1`
 
+sleep 2
+while [[ $(kubectl get crd | egrep tigerastatuses.operator.tigera.io | wc -l) != 1 ]]
+do
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/$CALICO_VERSION/manifests/tigera-operator.yaml
 
-sleep 2
+kubectl wait --for=condition=Ready pod -l k8s-app=tigera-operator -n tigera-operator --timeout=120s
+done
 
 kubectl create -f -<<EOF
 apiVersion: operator.tigera.io/v1

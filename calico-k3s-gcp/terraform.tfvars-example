@@ -1,31 +1,42 @@
-source          = "./calico-k3s-gcp"
-region = "us-cetnral1"
-project= "<YOUR_GCP_PROJECT>"
-availability_zone_names = ["us-central1-a","us-central1-b","us-central1-c"]
+  source          = "./calico-k3s-gcp"
 
-# Range of IP that will be used as Kubernetes Pod CIDR
-pod_cidr_block = "10.42.0.0/16"
-# Range of the IPs that will be used for Kubernetes services
-service_cidr_block = "10.43.0.0/16"
-# Which k3s features should be disabled?
-k3s_features = "traefik,local-storage,metrics-server"
-# Domain name that will be used for your cluster
-cluster_domain = "gcp.local"
-# K3s Version that would be installed 
-k3s_version = "1.27"
+  region = "us-central1"
+  project= "<YOUR-PROJECT-NAME>"
+  availability_zone_names = ["us-central1-a","us-central1-b","us-central1-c"]
 
-# gcloud compute images list --uri | egrep ubuntu
-image_id = "ubuntu-os-cloud/ubuntu-minimal-2204-jammy-v20231003"
+  # Range of IP that will be used as Kubernetes Pod CIDR
+  pod_cidr_block = "10.42.0.0/16"
+  # Range of the IPs that will be used for Kubernetes services
+  service_cidr_block = "10.43.0.0/16"
+  # Which k3s features should be disabled?
+  k3s_features = "traefik,local-storage,metrics-server,servicelb"
+  # Domain name that will be used for your cluster
+  cluster_domain = "gcp-a.local"
+  # K3s Version that would be installed 
+  k3s_version = "1.29"
 
-# Control plane instance type
-cp_instance_type = "n1-standard-4"
-# Worker Instance type
-worker_instance_type = "n1-standard-2"
-# Public ip address for workers
-worker_public_ip = true
-# Number of worker nodes in your cluster
-worker_count = 1
-# Cluster Key name
-cluster_key_name = "calico-demo.pem"
-# Path to the files directroy
-files_path = "../files/"
+  # gcloud compute images list --uri | egrep ubuntu
+  image_id = "ubuntu-os-cloud/ubuntu-minimal-2404-noble-amd64-v20240808"
+
+  # Control plane instance type
+  cp_instance_type = "n1-standard-4"
+  # Cloud provider integrations
+  disable_cloud_provider = false
+
+  # Worker Instance type
+  worker_instance_type = "n1-standard-2"
+  # Public ip address for workers
+  worker_public_ip = true
+  # Number of worker nodes in your cluster
+  worker_count = 1
+  # Cluster Key name
+  cluster_key_name = "calico-demo.pem"
+  # Path to the files directory
+  files_path = "files/"
+  # Nested virtualization allows you to run VMs in your VMs https://cloud.google.com/compute/docs/instances/nested-virtualization/overview
+  enable_nested_virtualization = true
+  # Whether to attach a GPU to worker nodes
+  worker_enable_gpu = false
+  worker_gpu_type = "nvidia-tesla-t4"
+  worker_gpu_count = 1
+  disk_size = 50
