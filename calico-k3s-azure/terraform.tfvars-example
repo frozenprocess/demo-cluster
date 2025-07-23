@@ -1,0 +1,36 @@
+  source = "./calico-k3s-azure"
+
+  location = "East US"
+  availability_zone_names = ["1", "2", "3"]
+
+  # Range of IP that will be used as Kubernetes Pod CIDR
+  pod_cidr_block = "10.42.0.0/16"
+  # Range of the IPs that will be used for Kubernetes services
+  service_cidr_block = "10.43.0.0/16"
+  # Which k3s features should be enabled?
+  k3s_features = "traefik,local-storage,metrics-server,servicelb"
+  # Domain name that will be used for your cluster
+  cluster_domain = "azure-a.local"
+  # K3s Version that would be installed 
+  k3s_version = "1.29"
+
+  # Control plane instance type
+  cp_instance_type = "Standard_D4s_v3"
+  # Cloud provider integrations
+  disable_cloud_provider = false
+
+  # Worker Instance type
+  worker_instance_type = "Standard_D2s_v3"
+  # Public ip address for workers
+  worker_public_ip = true
+  # Number of worker nodes in your cluster
+  worker_count = 1
+  # Cluster Key name
+  cluster_key_name = "calico-demo.pem"
+  # Path to the files directory
+  files_path = "../files/"
+  # Whether to attach a GPU to worker nodes
+  worker_enable_gpu = false
+  worker_gpu_type = "Standard_NC4as_T4_v3"
+  worker_gpu_count = 1
+  disk_size = 50

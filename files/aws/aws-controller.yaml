@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-cloud-controller-manager
+  namespace: kube-system
+type: Opaque
+stringData:
+  aws.conf: |
+    [Global]
+    region = us-west-2
+    vpc-id = vpc-xxxxxxxxx
+    subnet-id = subnet-xxxxxxxxx
+    zone = us-west-2a
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aws-cloud-controller-manager
+  namespace: kube-system
+  labels:
+    tier: control-plane
+    k8s-app: aws-cloud-controller-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: aws-cloud-controller-manager
+  template:
+    metadata:
+      labels:
+        tier: control-plane
+        k8s-app: aws-cloud-controller-manager
+    spec:
+      serviceAccountName: aws-cloud-controller-manager
+      tolerations:
+      - key: node.cloudprovider.kubernetes.io/uninitialized
+        value: "true"
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      containers:
+      - name: aws-cloud-controller-manager
+        image: registry.k8s.io/provider-aws/cloud-controller-manager:v1.27.0
+        command:
+        - /usr/bin/aws-cloud-controller-manager
+        - --v=3
+        - --cloud-config=/etc/aws/aws.conf
+        - --cloud-provider=aws
+        - --allocate-node-cidrs=true
+        - --configure-cloud-routes=true
+        - --controllers=*,-route
+        - --leader-elect=true
+        - --leader-elect-lease-duration=15s
+        - --leader-elect-renew-deadline=10s
+        - --leader-elect-retry-period=2s
+        volumeMounts:
+        - name: aws-config
+          mountPath: /etc/aws
+          readOnly: true
+      volumes:
+      - name: aws-config
+        secret:
+          secretName: aws-cloud-controller-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aws-cloud-controller-manager
+  namespace: kube-system
+  labels:
+    k8s-app: aws-cloud-controller-manager
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/aws-cloud-controller-manager 

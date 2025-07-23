@@ -13,4 +13,4 @@ override.tf.json
 terraform.rc
 calico-demo.pem
 *.hcl
-main.tf
+/main.tf

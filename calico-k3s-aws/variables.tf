@@ -71,7 +71,9 @@ variable "cluster_domain" {
 }
 
 variable "worker_count" {
-  default = "1"
+  type        = number
+  description = "Number of worker nodes in your cluster."
+  default     = 1
 }
 
 variable "k3s_version" {
@@ -92,4 +94,34 @@ variable "cluster_key_name" {
 variable "disable_cloud_provider" {
   type    = bool
   default = true
+}
+
+variable "enable_nested_virtualization" {
+  type        = bool
+  description = "Whether to enable nested virtualization (not supported on AWS)"
+  default     = false
+}
+
+variable "disk_size" {
+  type        = number
+  description = "Size of the EBS volume in GB."
+  default     = 50
+}
+
+variable "worker_enable_gpu" {
+  description = "Whether to attach a GPU to worker nodes"
+  type        = bool
+  default     = false
+}
+
+variable "worker_gpu_type" {
+  description = "GPU type to attach (AWS GPU instance type)"
+  type        = string
+  default     = "g4dn.xlarge"
+}
+
+variable "worker_gpu_count" {
+  description = "Number of GPUs to attach"
+  type        = number
+  default     = 1
 }

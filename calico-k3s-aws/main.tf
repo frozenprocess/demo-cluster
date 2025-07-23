@@ -162,6 +162,16 @@ resource "aws_instance" "k3s_demo_cp" {
     destination = "/tmp/calico-install.sh"
   }
 
+  provisioner "file" {
+    content = "[Global]\nregion=${var.region}\nvpc-id=${aws_vpc.k3s_demo_vpc.id}\nsubnet-id=${aws_subnet.k3s_demo_subnet_1.id}\nzone=${var.availability_zone_names[0]}"
+    destination = "/tmp/cloud.config"
+  }
+
+  provisioner "file" {
+    source      = "${var.files_path}aws/aws-controller.yaml"
+    destination = "/tmp/cloud-controller.yaml"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/prepare.sh",
@@ -188,7 +198,7 @@ resource "aws_instance" "k3s_demo_cp" {
 resource "aws_instance" "k3s_demo_worker_" {
   count             = var.worker_count
   ami               = var.image_id
-  instance_type     = var.worker_instance_type
+  instance_type     = var.worker_enable_gpu ? var.worker_gpu_type : var.worker_instance_type
   key_name          = aws_key_pair.k3s_demo_ssh_key.key_name
   availability_zone = aws_subnet.k3s_demo_subnet_2.availability_zone
   subnet_id         = aws_subnet.k3s_demo_subnet_2.id
@@ -199,6 +209,12 @@ resource "aws_instance" "k3s_demo_worker_" {
   associate_public_ip_address = var.worker_public_ip ? true : false
   credit_specification {
     cpu_credits = "unlimited"
+  }
+
+  # EBS volume configuration with disk_size variable
+  root_block_device {
+    volume_size = var.disk_size
+    volume_type = "gp3"
   }
 
   connection {
