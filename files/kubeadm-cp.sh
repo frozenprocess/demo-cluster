@@ -38,3 +38,5 @@ NVIDIA_VERSION=`curl https://api.github.com/repos/NVIDIA/k8s-device-plugin/relea
 curl -s https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/$NVIDIA_VERSION/deployments/static/nvidia-device-plugin.yml   | sed '/^[[:space:]]*containers:/i\      runtimeClassName: nvidia' > nvidia.yaml
 kubectl create -f nvidia.yaml
 fi
+
+kubeadm token create --print-join-command  > /home/ubuntu/join.sh

@@ -42,7 +42,7 @@ spec:
       serviceAccountName: cloud-controller-manager
       containers:
       - name: cloud-controller-manager
-        image: registry.k8s.io/cloud-provider-gcp/cloud-controller-manager:v27.1.6
+        image: registry.k8s.io/cloud-provider-gcp/cloud-controller-manager:v33.1.1
         imagePullPolicy: IfNotPresent
         command:
         - /cloud-controller-manager
@@ -356,3 +356,27 @@ rules:
   verbs:
   - list
   - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:cloud-provider
+rules:
+- apiGroups: [""]
+  resources: ["services", "services/status"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:cloud-provider
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:cloud-provider
+subjects:
+- kind: ServiceAccount
+  name: cloud-provider
+  namespace: kube-system
+---

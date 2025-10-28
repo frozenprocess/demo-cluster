@@ -141,13 +141,12 @@ resource "google_compute_instance" "k3s_demo_cp" {
   }
 
   provisioner "file" {
-    source      = "${var.files_path}prepare.sh"
+    source      = "${var.files_path}prepare_kubeadm.sh"
     destination = "/tmp/prepare.sh"
   }
 
-
   provisioner "file" {
-    source      = "${var.files_path}k3s-cp.sh"
+    source      = "${var.files_path}kubeadm-cp.sh"
     destination = "/tmp/k3s-cp.sh"
   }
 
@@ -170,10 +169,6 @@ resource "google_compute_instance" "k3s_demo_cp" {
     inline = [
       "chmod +x /tmp/prepare.sh",
       "sudo /tmp/prepare.sh ${var.k3s_version}",
-      "chmod +x /tmp/k3s-cp.sh",
-      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain} ${var.k3s_features} ${var.disable_cloud_provider}",
-      "chmod +x /tmp/calico-install.sh",
-      "sudo /tmp/calico-install.sh ${var.pod_cidr_block}"
     ]
   }
 
@@ -252,12 +247,12 @@ resource "google_compute_instance" "k3s_demo_worker_" {
   }
 
   provisioner "file" {
-    source      = "${var.files_path}prepare.sh"
+    source      = "${var.files_path}prepare_kubeadm.sh"
     destination = "/tmp/prepare.sh"
   }
 
   provisioner "file" {
-    source      = "${var.files_path}k3s-node.sh"
+    source      = "${var.files_path}kubeadm-node.sh"
     destination = "/tmp/k3s-node.sh"
   }
 
@@ -270,8 +265,6 @@ resource "google_compute_instance" "k3s_demo_worker_" {
     inline = [
       "chmod +x /tmp/prepare.sh",
       "sudo /tmp/prepare.sh ${var.k3s_version}",
-      "chmod +x /tmp/k3s-node.sh",
-      "sudo /tmp/k3s-node.sh ${google_compute_instance.k3s_demo_cp.network_interface.0.access_config.0.nat_ip}"
     ]
   }
 

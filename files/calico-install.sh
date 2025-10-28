@@ -17,6 +17,8 @@ kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/$CALICO
 kubectl wait --for=condition=Ready pod -l k8s-app=tigera-operator -n tigera-operator --timeout=120s
 done
 
+while [[ $(kubectl get installation | wc -l) != 2 ]]
+do
 kubectl create -f -<<EOF
 apiVersion: operator.tigera.io/v1
 kind: Installation
@@ -38,6 +40,8 @@ metadata:
   name: default
 spec: {}
 EOF
+sleep 2
+done
 
 echo "Waiting for Calico"
 while [[ $(kubectl get tigerastatus -o=jsonpath='{.items[?(@.metadata.name=="calico")].status.conditions[?(@.type=="Available")].status}') != "True" ]]
