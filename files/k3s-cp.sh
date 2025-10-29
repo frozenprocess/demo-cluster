@@ -31,10 +31,3 @@ if [[ $DISABLE_CLOUD_PROVIDER == "false" ]];then
 kubectl create cm -n kube-system cloud-config --from-file=/tmp/cloud.config
 kubectl create -f /tmp/cloud-controller.yaml
 fi
-
-## Is this a GPU node? let's install GPU stuff for AI
-if [ "$GPU" -ge 1 ]; then
-NVIDIA_VERSION=`curl https://api.github.com/repos/NVIDIA/k8s-device-plugin/releases | yq -r '.[].tag_name' | sort -d | tail -n1`
-curl -s https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/$NVIDIA_VERSION/deployments/static/nvidia-device-plugin.yml   | sed '/^[[:space:]]*containers:/i\      runtimeClassName: nvidia' > nvidia.yaml
-kubectl create -f nvidia.yaml
-fi

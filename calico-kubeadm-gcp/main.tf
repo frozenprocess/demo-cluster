@@ -169,6 +169,10 @@ resource "google_compute_instance" "k3s_demo_cp" {
     inline = [
       "chmod +x /tmp/prepare.sh",
       "sudo /tmp/prepare.sh ${var.k3s_version}",
+      "chmod +x /tmp/k3s-cp.sh",
+      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain}",
+      "chmod +x /tmp/calico-install.sh",
+      "sudo /tmp/calico-install.sh ${var.pod_cidr_block}"
     ]
   }
 
@@ -265,6 +269,8 @@ resource "google_compute_instance" "k3s_demo_worker_" {
     inline = [
       "chmod +x /tmp/prepare.sh",
       "sudo /tmp/prepare.sh ${var.k3s_version}",
+      "chmod +x /tmp/k3s-node.sh",
+      "sudo /tmp/k3s-node.sh ${google_compute_instance.k3s_demo_cp.network_interface.0.network_ip}",
     ]
   }
 

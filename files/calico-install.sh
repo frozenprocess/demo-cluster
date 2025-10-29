@@ -1,8 +1,8 @@
 #!/bin/bash
 POD_CIDR=$1
 
-echo "Waiting for k3s Cluser to comeup"
-while [[ $(curl -k --write-out '%{http_code}' --silent --output /dev/null https://`hostname`:6443/) != "401" ]]
+echo "Starting Calico Installer"
+while [[ $(curl -k --write-out '%{http_code}' --silent --output /dev/null https://`hostname`:6443/version) != "200" ]]
 do
     sleep 1
 done
@@ -25,6 +25,7 @@ kind: Installation
 metadata:
   name: default
 spec:
+  kubeletVolumePluginPath: None
   calicoNetwork:
     bgp: Enabled
     ipPools:

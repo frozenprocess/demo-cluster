@@ -2,7 +2,7 @@
 
 TRIES=0
 
-while [[ $(curl --write-out '%{http_code}' --silent --output /dev/null $1:6443) != "400" ]]
+while [[ $(curl -k --write-out '%{http_code}' --silent --output /dev/null https://$1:6443/version) != "200" ]]
 do
     if [[ $TRIES -eq 60 ]];then
         echo "Filed to query Control plane"
@@ -14,7 +14,9 @@ do
 done
 
 echo "Agents"
-/usr/bin/scp -i "/home/ubuntu/calico-demo.pem" -o StrictHostKeyChecking=no ubuntu@10.138.0.4:/home/ubuntu/join.sh /home/ubuntu/join.sh 
+chmod 600 /home/ubuntu/calico-demo.pem
+/usr/bin/scp -i "/home/ubuntu/calico-demo.pem" -o StrictHostKeyChecking=no ubuntu@$1:/home/ubuntu/join.sh /home/ubuntu/join.sh 
 chmod +x /home/ubuntu/join.sh
+bash /home/ubuntu/join.sh
 
 rm -rf /home/ubuntu/calico-demo.pem

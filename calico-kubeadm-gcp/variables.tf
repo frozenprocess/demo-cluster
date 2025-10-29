@@ -1,7 +1,7 @@
 variable "image_id" {
   type        = string
   description = "The image name in gcloud."
-  default     = "ubuntu-os-cloud/ubuntu-minimal-2204-jammy-v20231003"
+  default     = "ubuntu-os-cloud/ubuntu-2404-lts-amd64"
 
 }
 
@@ -61,7 +61,7 @@ variable "worker_count" {
 
 variable "k3s_version" {
   type    = string
-  default = "1.27"
+  default = "v1.34"
 }
 
 variable "files_path" {
