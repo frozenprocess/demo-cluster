@@ -23,10 +23,14 @@ do
     sleep 1
 done
 
-mkdir -p $HOME/.kube ubuntu/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config ubuntu/.kube/config
+mkdir -p $HOME/.kube
+mkdir -p /home/ubuntu/.kube/
+
+cp /etc/kubernetes/admin.conf $HOME/.kube/config
+cp /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
+
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
-sudo chown ubuntu:ubuntu ubuntu/.kube/config
+sudo chown ubuntu:ubuntu /home/ubuntu/.kube/config
 
 if [[ $DISABLE_CLOUD_PROVIDER == "false" ]];then
 kubectl --kubeconfig="/etc/kubernetes/admin.conf" create cm -n kube-system cloud-config --from-file=/tmp/cloud.config

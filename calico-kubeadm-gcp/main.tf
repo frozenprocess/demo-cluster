@@ -141,7 +141,7 @@ resource "google_compute_instance" "k3s_demo_cp" {
   }
 
   provisioner "file" {
-    source      = "${var.files_path}prepare_kubeadm.sh"
+    source      = "${var.files_path}prepare-kubeadm.sh"
     destination = "/tmp/prepare.sh"
   }
 
@@ -251,7 +251,7 @@ resource "google_compute_instance" "k3s_demo_worker_" {
   }
 
   provisioner "file" {
-    source      = "${var.files_path}prepare_kubeadm.sh"
+    source      = "${var.files_path}prepare-kubeadm.sh"
     destination = "/tmp/prepare.sh"
   }
 
