@@ -6,12 +6,18 @@ CLUSTER_DNS=`echo $2 | sed -E "s/^([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)[0-9]{1,
 CLUSTER_DOMAIN=$3
 K3S_FEATURES=$4
 DISABLE_CLOUD_PROVIDER=$5
+TLS_SAN=${6:-}
 
 if [[ $DISABLE_CLOUD_PROVIDER == "false" ]];then
 DISABLE_CLOUD_PROVIDER_STRING="--kubelet-arg=cloud-provider=external --disable-cloud-controller"
 fi
 
-INSTALL_K3S_SKIP_DOWNLOAD=true K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--kubelet-arg=config=/etc/kubelet.conf $DISABLE_CLOUD_PROVIDER_STRING --flannel-backend=none --cluster-cidr=$CLUSTER_CIDR --service-cidr=$SERVICE_CIDR --cluster-dns=$CLUSTER_DNS --cluster-domain=$CLUSTER_DOMAIN --disable-network-policy --disable=$K3S_FEATURES" /root/install.sh
+TLS_SAN_ARG=""
+if [[ -n "$TLS_SAN" ]]; then
+TLS_SAN_ARG="--tls-san=$TLS_SAN"
+fi
+
+INSTALL_K3S_SKIP_DOWNLOAD=true K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--kubelet-arg=config=/etc/kubelet.conf $TLS_SAN_ARG $DISABLE_CLOUD_PROVIDER_STRING --flannel-backend=none --cluster-cidr=$CLUSTER_CIDR --service-cidr=$SERVICE_CIDR --cluster-dns=$CLUSTER_DNS --cluster-domain=$CLUSTER_DOMAIN --disable-network-policy --disable=$K3S_FEATURES" /root/install.sh
 
 cp /var/lib/rancher/k3s/server/node-token /home/ubuntu/node-token 
 chmod 644 /home/ubuntu/node-token

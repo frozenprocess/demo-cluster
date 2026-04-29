@@ -6,6 +6,13 @@ provider "google" {
 data "google_project" "project" {
 }
 
+locals {
+  tag_suffix = random_string.rand_chars.result
+  common_node_tag = "k3s-demo-nodes-${local.tag_suffix}"
+  control_plane_tag = "k3s-demo-cp-${local.tag_suffix}"
+  worker_node_tag = "k3s-demo-workers-${local.tag_suffix}"
+}
+
 resource "random_string" "rand_chars" {
   length  = 8
   upper   = false
@@ -62,7 +69,8 @@ resource "google_compute_firewall" "rules" {
     protocol = "icmp"
   }
 
-  source_tags = ["k3s-demo-cp", "k3s-demo-workers"]
+  source_tags = [local.common_node_tag]
+  target_tags = [local.common_node_tag]
 }
 
 resource "google_tags_tag_key" "tag_key" {
@@ -102,7 +110,7 @@ resource "google_compute_instance" "k3s_demo_cp" {
   machine_type = var.cp_instance_type
   zone         = "us-central1-a"
 
-  tags = ["k3s-demo-cp"]
+  tags = [local.common_node_tag, local.control_plane_tag]
 
   boot_disk {
     initialize_params {
@@ -157,7 +165,7 @@ resource "google_compute_instance" "k3s_demo_cp" {
   }
 
   provisioner "file" {
-    content = "[Global]\nproject-id=${var.project}\nnetwork-name=${google_compute_network.vpc_network.name}\nnode-tags=${element(tolist(self.tags), 1)}"
+    content = "[Global]\nproject-id=${var.project}\nnetwork-name=${google_compute_network.vpc_network.name}\nnode-tags=${local.common_node_tag}"
     destination = "/tmp/cloud.config"
   }
 
@@ -171,7 +179,7 @@ resource "google_compute_instance" "k3s_demo_cp" {
       "chmod +x /tmp/prepare.sh",
       "sudo /tmp/prepare.sh ${var.k3s_version}",
       "chmod +x /tmp/k3s-cp.sh",
-      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain} ${var.k3s_features} ${var.disable_cloud_provider}",
+      "sudo /tmp/k3s-cp.sh ${var.pod_cidr_block} ${var.service_cidr_block} ${var.cluster_domain} ${var.k3s_features} ${var.disable_cloud_provider} ${google_compute_instance.k3s_demo_cp.network_interface.0.access_config.0.nat_ip}",
       "chmod +x /tmp/calico-install.sh",
       "sudo /tmp/calico-install.sh ${var.pod_cidr_block}"
     ]
@@ -193,7 +201,7 @@ resource "google_compute_instance" "k3s_demo_worker_" {
   machine_type = var.worker_instance_type
   zone         = "us-central1-a"
 
-  tags = ["k3s-demo-workers"]
+  tags = [local.common_node_tag, local.worker_node_tag]
 
   boot_disk {
     initialize_params {
