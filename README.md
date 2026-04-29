@@ -44,6 +44,25 @@ terraform apply
 
 after a successful deployment use the `demo_connection` from the output to ssh into the controlplane.
 
+You can also pull the cluster kubeconfig directly to your local machine:
+```bash
+./files/get-kubeconfig.sh cluster-a
+```
+
+The script prompts whether you want insecure mode (`insecure-skip-tls-verify: true`) or standard certificate validation.
+
+By default it writes to `~/.kube/cluster-a.yaml`.
+You can pass a custom destination as the second argument:
+```bash
+./files/get-kubeconfig.sh cluster-a ~/.kube/my-cluster.yaml
+```
+
+Then point `kubectl` to that file:
+```bash
+export KUBECONFIG=~/.kube/cluster-a.yaml
+kubectl get nodes
+```
+
 # Clean up
 Keep in mind that cloud providers charge you based on the time that you have spent on running resources,at any point you can use `terraform destroy` to completely destroy the project and.
 
