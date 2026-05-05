@@ -80,7 +80,7 @@ write_secure_kubeconfig() {
 write_insecure_kubeconfig() {
   local tmp_insecure
   tmp_insecure="$(mktemp)"
-  sed -E "/^[[:space:]]*insecure-skip-tls-verify:[[:space:]]*true[[:space:]]*$/d; s#server: https://(127\\.0\\.0\\.1|localhost):6443#server: https://${MODULE_CP_IP}:6443#g" "${TMP_FILE}" > "${tmp_insecure}"
+  sed -E "/^[[:space:]]*insecure-skip-tls-verify:[[:space:]]*true[[:space:]]*$/d; /^[[:space:]]*certificate-authority-data:[[:space:]]*.*$/d; s#server: https://(127\\.0\\.0\\.1|localhost):6443#server: https://${MODULE_CP_IP}:6443#g" "${TMP_FILE}" > "${tmp_insecure}"
 
   awk '
     {
