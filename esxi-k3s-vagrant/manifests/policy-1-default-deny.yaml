@@ -1,0 +1,11 @@
+# Default deny on the L2 VLAN interfaces (pod network excluded), so the
+# shared broadcast domain is locked down until a policy opens it.
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: demo-default-deny-vlan
+spec:
+  selector: projectcalico.org/namespace == 'virtual-machines' && has(projectcalico.org/network) && projectcalico.org/network != 'k8s-pod-network'
+  types:
+  - Ingress
+  - Egress

@@ -12,5 +12,9 @@ override.tf.json
 .terraformrc
 terraform.rc
 calico-demo.pem
+*.pem
+enterprise_files/
 *.hcl
 /main.tf
+*.iso
+*.bundle

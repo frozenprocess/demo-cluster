@@ -1,0 +1,27 @@
+# Allow HTTP within the workload VLAN (150). Selector matches by the
+# projectcalico.org/network label Calico sets to the NAD name.
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: demo-allow-vlan-150-http
+spec:
+  selector: projectcalico.org/network == 'vm-vlan-150'
+  order: 50
+  types:
+  - Ingress
+  - Egress
+  ingress:
+  - action: Allow
+    protocol: TCP
+    source:
+      selector: projectcalico.org/network == 'vm-vlan-150'
+    destination:
+      ports:
+      - 80
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: projectcalico.org/network == 'vm-vlan-150'
+      ports:
+      - 80

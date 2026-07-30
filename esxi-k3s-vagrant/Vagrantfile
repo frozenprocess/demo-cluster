@@ -1,0 +1,124 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# ESXi + a k3s/Calico-Enterprise-L2 node on one libvirt host, sharing a VLAN-150
+# broadcast domain over an isolated bridge (the stand-in for a physical switch).
+#
+# Vagrant owns what it is good at -- the Ubuntu node VM (box, second NIC, synced
+# folder, provisioning). ESXi is NOT a Vagrant box: it installs from an ISO with
+# a remastered kickstart, UEFI boot and two disks, so it is built by
+# scripts/esxi-run.sh through virt-install from a before-up trigger. Same for the
+# isolated trunk network and the ESXi-side guest (created over the ESXi API).
+#
+# Knobs are environment variables -- see README.md.
+
+HERE = File.expand_path(File.dirname(__FILE__))
+
+RUN_ESXI  = ENV.fetch("RUN_ESXI",  "true") == "true"
+RUN_GUEST = ENV.fetch("RUN_GUEST", "true") == "true"
+RUN_L2    = ENV.fetch("RUN_L2",    "true") == "true"
+
+ESXI_PW   = ENV.fetch("ESXI_PW", "")
+ESXI_ISO  = ENV.fetch("ESXI_ISO", Dir[File.join(HERE, "iso", "VMware-VMvisor-Installer-*.iso")].sort.last.to_s)
+ESXI_NAME = ENV.fetch("ESXI_NAME", "esxi")
+ESXI_IP   = ENV.fetch("ESXI_IP", "192.168.122.10")
+ESXI_MEM  = ENV.fetch("ESXI_MEM", "8192")
+ESXI_CPUS = ENV.fetch("ESXI_CPUS", "4")
+ESXI_DISK = ENV.fetch("ESXI_DISK", "40")
+ESXI_DS   = ENV.fetch("ESXI_DATASTORE_DISK", "40")
+
+TRUNK_NET = ENV.fetch("TRUNK_NET", "l2trunk")
+VLAN      = ENV.fetch("WORKLOAD_VLAN", "150")
+GUEST_NAME = ENV.fetch("GUEST_NAME", "small")
+GUEST_MEM  = ENV.fetch("GUEST_MEM", "1024")
+GUEST_CPUS = ENV.fetch("GUEST_CPUS", "1")
+GUEST_IP   = ENV.fetch("GUEST_IP", "192.168.150.50/24")
+
+NODE_MEM  = ENV.fetch("NODE_MEM", "16384").to_i
+NODE_CPUS = ENV.fetch("NODE_CPUS", "6").to_i
+NODE_DISK = ENV.fetch("NODE_DISK", "80").to_i
+OPERATOR_IMAGE = ENV.fetch("OPERATOR_IMAGE", "")
+
+# Only the commands that actually build something need the inputs -- otherwise
+# `vagrant ssh`/`rsync`/`destroy` would abort without the env vars set.
+BUILDING = (ARGV & %w[up provision reload resume]).any?
+
+# Fail at load time, not 20 minutes into an install.
+abort "ESXI_ISO not found (put the ESXi installer ISO in iso/ or set ESXI_ISO)" \
+  if BUILDING && RUN_ESXI && !File.file?(ESXI_ISO)
+abort "RUN_GUEST needs ESXI_PW (the guest is created over the ESXi API as root)" \
+  if BUILDING && RUN_GUEST && ESXI_PW.empty?
+abort "RUN_L2 needs OPERATOR_IMAGE (no released operator carries the L2 Networks CRD)" \
+  if BUILDING && RUN_L2 && OPERATOR_IMAGE.empty?
+# A bare tag would resolve to docker.io/library/<tag> and ImagePullBackOff ten
+# minutes into provisioning. Demand registry/repo:tag.
+abort "OPERATOR_IMAGE must be a full reference, e.g.\n" \
+      "  docker.com/u/calico/operator:#{OPERATOR_IMAGE}" \
+  if BUILDING && RUN_L2 && OPERATOR_IMAGE !~ %r{\A[^\s]+/[^\s]+:[^\s:/]+\z}
+abort "RUN_L2 needs enterprise_files/{docker.config,license.yaml}" \
+  if BUILDING && RUN_L2 && !(File.file?("#{HERE}/enterprise_files/docker.config") &&
+                 File.file?("#{HERE}/enterprise_files/license.yaml"))
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "cloud-image/ubuntu-24.04"
+  config.vm.box_check_update = false
+
+  # The isolated trunk bridge must exist before either VM attaches to it --
+  # virt-install (ESXi) runs outside Vagrant and cannot wait for it.
+  config.trigger.before :up do |t|
+    t.name = "trunk network '#{TRUNK_NET}'"
+    t.run = { inline: "bash #{HERE}/scripts/libvirt-l2net.sh #{TRUNK_NET}" }
+  end
+
+  if RUN_ESXI
+    config.trigger.before :up do |t|
+      t.name = ESXI_PW.empty? ? "ESXi VM (interactive install over VNC)" : "ESXi VM (unattended kickstart)"
+      t.run = { inline: "bash #{HERE}/scripts/esxi-run.sh #{ESXI_NAME} #{ESXI_MEM} #{ESXI_CPUS} " \
+                        "#{ESXI_DISK} #{ESXI_ISO} '#{ESXI_PW}' #{ESXI_IP} #{ESXI_DS} #{TRUNK_NET}" }
+    end
+  end
+
+  config.vm.define "node" do |node|
+    node.vm.hostname = "l2node"
+
+    # Second NIC on the isolated trunk bridge, with no address: Felix owns it and
+    # tags VLAN #{VLAN} onto its managed bridge. eth0 stays Vagrant's management
+    # NAT network (DHCP + internet), which is also where the Manager UI lands.
+    node.vm.network :private_network,
+      libvirt__network_name: TRUNK_NET,
+      libvirt__forward_mode: "none",
+      libvirt__dhcp_enabled: false,
+      auto_config: false
+
+    # rsync rather than the libvirt default (NFS): no host nfs-server, no
+    # exports file, and the manifests/creds only need to travel one way.
+    node.vm.synced_folder ".", "/vagrant", type: "rsync",
+      rsync__exclude: ["iso/", ".vagrant/"]
+
+    node.vm.provider :libvirt do |lv|
+      lv.memory = NODE_MEM
+      lv.cpus   = NODE_CPUS
+      # Nested virt for KubeVirt (which still runs with useEmulation: true --
+      # its VMs are nested inside this one).
+      lv.cpu_mode = "host-passthrough"
+      lv.machine_virtual_size = NODE_DISK   # box root is ~5GB; cloud-init grows it
+      lv.nic_model_type = "virtio"
+    end
+
+    if RUN_L2
+      node.vm.provision "l2", type: "shell",
+        path: "scripts/l2-cluster-k3s.sh",
+        env: { "OPERATOR_IMAGE" => OPERATOR_IMAGE }
+    end
+  end
+
+  # The ESXi-side guest, once ESXi's API is up (the script waits for it). Runs on
+  # the host with govc, so it is a trigger, not a provisioner.
+  if RUN_ESXI && RUN_GUEST
+    config.trigger.after :up do |t|
+      t.name = "Alpine guest inside ESXi (VLAN #{VLAN}, #{GUEST_IP})"
+      t.run = { inline: "env VSWITCH=vSwitch1 bash #{HERE}/scripts/esxi-guest.sh " \
+                        "#{GUEST_NAME} #{GUEST_MEM} #{GUEST_CPUS} #{ESXI_IP} '#{ESXI_PW}' #{VLAN} #{GUEST_IP}" }
+    end
+  end
+end

@@ -1,0 +1,12 @@
+# Keep Calico IPAM out of the lower half of the VLAN 150 subnet
+# (192.168.150.0/25). That range is reserved for STATIC addresses of
+# non-Calico endpoints on the same tagged VLAN -- notably an ESXi guest
+# (esxi-guest.sh defaults to 192.168.150.50). Calico therefore auto-assigns
+# k8s VM addresses from the upper half, .128/25.
+apiVersion: projectcalico.org/v3
+kind: IPReservation
+metadata:
+  name: vlan-150-static-range
+spec:
+  reservedCIDRs:
+  - 192.168.150.0/25

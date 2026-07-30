@@ -1,0 +1,22 @@
+# Let the probe VM (vm-alpine.yaml) ping across the VLAN while
+# demo-default-deny-vlan keeps blocking ICMP for everything else -- the
+# default-deny beat stays intact for app-0/app-1.
+#
+# Egress only: Calico is stateful, so echo-replies come back on the conntrack
+# entry. Lower order wins, and default-deny has no order at all (nil = last).
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: demo-allow-vlan-150-icmp-probe
+spec:
+  # Same selector shape as policy-1 (which demonstrably matches these
+  # endpoints) narrowed to the probe VM. Do NOT use
+  # `projectcalico.org/network == 'vm-vlan-150'` here: on this dev build that
+  # label does not carry the NAD name, so such a selector matches nothing.
+  selector: has(projectcalico.org/network) && projectcalico.org/network != 'k8s-pod-network' && role == 'probe'
+  order: 40
+  types:
+  - Egress
+  egress:
+  - action: Allow
+    protocol: ICMP

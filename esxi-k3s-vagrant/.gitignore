@@ -1,0 +1,5 @@
+.vagrant/
+iso/*.iso
+enterprise_files/*
+!enterprise_files/.gitkeep
+reports/

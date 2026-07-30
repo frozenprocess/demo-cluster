@@ -1,0 +1,151 @@
+# Two KubeVirt VMs on the tagged workload VLAN 150 (vm-vlan-150), subnet
+# 192.168.150.0/24 -- the same L2 broadcast domain as any ESXi guest on a
+# VLAN-150 port group, but isolated from ESXi's management net (192.168.122).
+#
+# Adjusted from l2-demo-materials/vms.yaml for this single-node k3d cluster:
+# dropped the GKE nodepool nodeSelector and the pod-anti-affinity (one node,
+# nothing to spread across).
+#
+# Fixed IPs are requested via the per-interface annotation
+# (cni.projectcalico.org/<ifname>.ipAddrs). NOTE: the L2 dev branch may not
+# honour this yet -- if so the VMs auto-assign from .128/25 and the
+# annotation is inert. Use `kubectl get pods -n virtual-machines -o wide`
+# (or the vm-ips helper) to find the real IPs.
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: app-0
+  namespace: virtual-machines
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        role: web
+        vm-name: app-0
+      annotations:
+        k8s.v1.cni.cncf.io/networks: vm-vlan-150@cali1
+        cni.projectcalico.org/cali1.ipAddrs: '["192.168.150.130"]'
+    spec:
+      domain:
+        devices:
+          interfaces:
+          - name: default
+            bridge: {}
+          - name: vlan150
+            bridge: {}
+          disks:
+          - name: containerdisk
+            disk:
+              bus: virtio
+          - name: cloudinitdisk
+            disk:
+              bus: virtio
+        resources:
+          requests:
+            memory: 512Mi
+      networks:
+      - name: default
+        pod: {}
+      - name: vlan150
+        multus:
+          networkName: vm-vlan-150
+      terminationGracePeriodSeconds: 0
+      volumes:
+      - name: containerdisk
+        containerDisk:
+          image: quay.io/containerdisks/ubuntu:24.04
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            password: ubuntu
+            chpasswd:
+              expire: false
+            ssh_pwauth: true
+            packages:
+              - nginx
+            write_files:
+              - path: /var/www/html/index.html
+                content: |
+                  App Server 0
+            runcmd:
+              - systemctl enable nginx
+              - systemctl start nginx
+          networkData: |
+            version: 2
+            ethernets:
+              enp1s0:
+                dhcp4: true
+              enp2s0:
+                dhcp4: true
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: app-1
+  namespace: virtual-machines
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        role: web
+        vm-name: app-1
+      annotations:
+        k8s.v1.cni.cncf.io/networks: vm-vlan-150@cali1
+        cni.projectcalico.org/cali1.ipAddrs: '["192.168.150.131"]'
+    spec:
+      domain:
+        devices:
+          interfaces:
+          - name: default
+            bridge: {}
+          - name: vlan150
+            bridge: {}
+          disks:
+          - name: containerdisk
+            disk:
+              bus: virtio
+          - name: cloudinitdisk
+            disk:
+              bus: virtio
+        resources:
+          requests:
+            memory: 512Mi
+      networks:
+      - name: default
+        pod: {}
+      - name: vlan150
+        multus:
+          networkName: vm-vlan-150
+      terminationGracePeriodSeconds: 0
+      volumes:
+      - name: containerdisk
+        containerDisk:
+          image: quay.io/containerdisks/ubuntu:24.04
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            password: ubuntu
+            chpasswd:
+              expire: false
+            ssh_pwauth: true
+            packages:
+              - nginx
+            write_files:
+              - path: /var/www/html/index.html
+                content: |
+                  App Server 1
+            runcmd:
+              - systemctl enable nginx
+              - systemctl start nginx
+          networkData: |
+            version: 2
+            ethernets:
+              enp1s0:
+                dhcp4: true
+              enp2s0:
+                dhcp4: true

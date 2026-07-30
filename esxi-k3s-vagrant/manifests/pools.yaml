@@ -1,0 +1,21 @@
+# IP pool for the tagged workload VLAN 150. No encapsulation (pure L2 over the
+# virbr0 trunk), L2Workload-only, on its own subnet (distinct from ESXi's
+# management 192.168.122.0/24). Automatic assignment: the NAD uses calico-ipam
+# (assign_ipv4), so the pool must be auto-assignable; the IPReservation
+# (ip-reservations.yaml) keeps Calico out of the lower .0/25 so static
+# addresses there (e.g. an ESXi guest at .50) never collide.
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: vlan-150-pool
+spec:
+  allowedUses:
+  - L2Workload
+  assignmentMode: Automatic
+  blockSize: 26
+  disableBGPExport: true
+  cidr: 192.168.150.0/24
+  ipipMode: Never
+  natOutgoing: false
+  nodeSelector: all()
+  vxlanMode: Never

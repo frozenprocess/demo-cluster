@@ -1,0 +1,93 @@
+# A small Alpine VM on the tagged workload VLAN 150, for pinging the ESXi guest
+# (192.168.150.50) from the Calico side.
+#
+# Alpine ships as a KubeVirt containerdisk in only two flavours: the plain
+# alpine-container-disk-demo is a live ISO with no cloud-init (so a second NIC
+# would never get configured), hence the test-tooling image -- same Alpine, plus
+# cloud-init and ping/tcpdump.
+#
+# Alpine's cloud-init cannot render netplan-v2 network config, so the VLAN NIC is
+# configured through write_files + /etc/network/interfaces (the "networking"
+# service is already enabled) rather than the networkData the Ubuntu VMs use.
+# eth1 is DHCP: Calico serves addresses on its managed bridge, which is how
+# app-0/app-1 pick up their .19x addresses.
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: alpine-0
+  namespace: virtual-machines
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        role: probe          # policy-3 allows ICMP egress for this role only
+        vm-name: alpine-0
+      annotations:
+        k8s.v1.cni.cncf.io/networks: vm-vlan-150@cali1
+        cni.projectcalico.org/cali1.ipAddrs: '["192.168.150.132"]'
+    spec:
+      domain:
+        devices:
+          interfaces:
+          - name: default
+            bridge: {}
+          - name: vlan150
+            bridge: {}
+          disks:
+          - name: containerdisk
+            disk:
+              bus: virtio
+          - name: cloudinitdisk
+            disk:
+              bus: virtio
+        resources:
+          requests:
+            memory: 512Mi
+      networks:
+      - name: default
+        pod: {}
+      - name: vlan150
+        multus:
+          networkName: vm-vlan-150
+      terminationGracePeriodSeconds: 0
+      volumes:
+      - name: containerdisk
+        containerDisk:
+          image: quay.io/kubevirt/alpine-with-test-tooling-container-disk:devel
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          userData: |
+            #cloud-config
+            password: alpine
+            chpasswd:
+              expire: false
+            ssh_pwauth: true
+            write_files:
+              - path: /etc/network/interfaces
+                content: |
+                  auto lo
+                  iface lo inet loopback
+
+                  auto eth0
+                  iface eth0 inet dhcp
+
+                  auto eth1
+                  iface eth1 inet dhcp
+              # Gratuitous ARP for eth1's address -- the same "I am here, at this
+              # MAC" broadcast Calico emits so the VLAN's switches and the ESXi
+              # guest learn/refresh the mapping without waiting for an ARP request.
+              # ponytail: busybox arping, runs as root inside the VM.
+              - path: /usr/local/bin/garp.sh
+                permissions: '0755'
+                content: |
+                  #!/bin/sh
+                  dev=${1:-eth1}
+                  ip -4 -o addr show dev "$dev" | awk '{print $4}' | cut -d/ -f1 |
+                  while read -r addr; do
+                    echo "GARP $addr on $dev"
+                    arping -U -c 3 -I "$dev" "$addr" || true
+                  done
+            runcmd:
+              - [ service, networking, restart ]
+              - [ /usr/local/bin/garp.sh, eth1 ]

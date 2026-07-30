@@ -1,0 +1,32 @@
+# Productised Calico L2 Network API, adjusted for the ESXi topology.
+#
+# One workload VLAN (150) on its own subnet 192.168.150.0/24 -- deliberately
+# DIFFERENT from ESXi's management network (virbr0, 192.168.122.0/24). The
+# trunk port is "trunkbr0": a veth pushed into the k3d node netns by
+# l2-bridge.sh and enslaved to virbr0 on the host.
+#
+# VLAN 150 is carried 802.1Q *tagged* over the trunk (no nativeVLAN), so VM
+# workload traffic is tagged 150 and stays isolated from ESXi's management
+# traffic, which rides virbr0 untagged (the native/default VLAN). Anything
+# that must join VLAN 150 (k8s VMs here, or an ESXi guest) has to tag 150 --
+# e.g. an ESXi port group with VLAN ID 150 (see esxi-guest.sh). virbr0 is a
+# plain bridge with no VLAN filtering, so it forwards the tagged frames
+# transparently between the Calico trunk and ESXi's vmnic0.
+apiVersion: projectcalico.org/v3
+kind: Network
+metadata:
+  name: calico-l2
+spec:
+  l2Bridge:
+    vlans:
+    - vlan:
+        id: 150
+      subnets:
+      - cidr: 192.168.150.0/24
+    hostConfig:
+    - bridge:
+        managedBridge: {}
+      hostConnections:
+      - trunkPort:
+          interface:
+            name: trunkbr0
